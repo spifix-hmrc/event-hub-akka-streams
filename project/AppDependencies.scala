@@ -19,7 +19,8 @@ import sbt._
 
 object AppDependencies {
   val compile = Seq(
-    "uk.gov.hmrc"            %% "work-item-repo"           % "8.0.0-play-28"
+    "uk.gov.hmrc"            %% "work-item-repo"           % "8.0.0-play-28",
+    "org.reactivemongo" % "play2-reactivemongo_2.12" % "1.0.4-play28"
   )
   val test = Seq(
     "com.typesafe.play"      %% "play-test"                % current          % Test,

@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.eventhub.controllers
+package uk.gov.hmrc.eventhub.service
 
-import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
-import uk.gov.hmrc.eventhub.repository.{EventHubMongoRepository, Person}
-import uk.gov.hmrc.eventhub.service.EventService
+import uk.gov.hmrc.eventhub.repository.{EventHubRepository, Person}
 
 import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.workitem._
+import scala.concurrent.Future
 
 @Singleton
-class EventHubController @Inject()(val controllerComponents: ControllerComponents,
-                                   eventService: EventService) extends BaseController {
-
-  def publishEvent(topic: String) = Action { implicit request: Request[AnyContent] =>
-    eventService.createPerson(Person("jim", "collins", 21))
-    Ok(views.html.index())
+class EventService @Inject()( eventHubRepository: EventHubRepository ) {
+  def createPerson(person: Person): Future[Unit] = {
+    eventHubRepository.createPerson(person)
   }
 }
