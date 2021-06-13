@@ -15,98 +15,65 @@
  */
 
 package uk.gov.hmrc.eventhub.repository
-import org.joda.time.DateTime
+
+
+import org.mongodb.scala.bson.ObjectId
+import org.mongodb.scala.{MongoCollection, SingleObservable}
+import org.mongodb.scala.result.InsertOneResult
 import play.api.Configuration
-import play.api.libs.json.{Json}
+import play.api.libs.json.{Format, Json}
+import uk.gov.hmrc.mongo.MongoComponent
 
 import scala.concurrent.{ExecutionContext, Future}
-import reactivemongo.api.{AsyncDriver, Cursor, DB, MongoConnection}
-import reactivemongo.api.bson.{BSONDocumentReader, BSONDocumentWriter, BSONObjectID, Macros, document}
-import reactivemongo.play.json.ImplicitBSONHandlers._
-import uk.gov.hmrc.mongo.json.ReactiveMongoFormats
-import uk.gov.hmrc.workitem.{WorkItem, WorkItemFieldNames, WorkItemRepository}
-import uk.gov.hmrc.eventhub.model.NoticeOfCodingSuppression
+import uk.gov.hmrc.mongo.play.json.{Codecs, CollectionFactory, PlayMongoRepository}
 
 import javax.inject.Inject
 
-trait EventHubRepository {
-  def createPerson(person: Person): Future[Unit]
-}
+
+class EventHubRepository @Inject()(config: Configuration, mongo: MongoComponent)(implicit ec: ExecutionContext) {
 
 
-class EventHubMongoRepository @Inject()(config: Configuration)(
-                                       implicit mongo: () => DB,
-                                       ec: ExecutionContext
-)extends WorkItemRepository[NoticeOfCodingSuppression, BSONObjectID](
-"noticeOfCodingSuppressionV2",
-  mongo,
-  WorkItem.workItemMongoFormat[NoticeOfCodingSuppression],
-config.underlying
-) {
-  val mongoUri = "mongodb://localhost:27017"
+  import org.mongodb.scala.bson.codecs.Macros._
+  import org.mongodb.scala.MongoClient.DEFAULT_CODEC_REGISTRY
+  import org.bson.codecs.configuration.CodecRegistries.{ fromRegistries, fromProviders }
+  val codecRegistry = fromRegistries(fromProviders(classOf[Person]), DEFAULT_CODEC_REGISTRY)
 
-  val driver = AsyncDriver()
-  val parsedUri = MongoConnection.fromString(mongoUri)
 
-  // Database and collections: Get references
-  val futureConnection = parsedUri.flatMap(driver.connect(_))
-  def db1: Future[DB] = futureConnection.flatMap(_.database("event-hub"))
-  //def db2: Future[DB] = futureConnection.flatMap(_.database("anotherdb"))
-  def personCollection = db1.map(_.collection("person"))
 
-  implicit def personWriter: BSONDocumentWriter[Person] = Macros.writer[Person]
-  // or provide a custom one
+//  def createPerson2(person: Person): Future[Unit] = {
+//    println(s"creating a person $person ${mongo.database.name}")
+//    coll.insertOne(Person("jim", "col", 21))
+//    val p: SingleObservable[InsertOneResult] = collection.insertOne(Person("jim", "c", 21))
+//    println(s"tje p is $p")
+//    println("done")
+//    Future.successful(())
+//  }
 
-  // use personWriter
+  import org.mongodb.scala._
   def createPerson(person: Person): Future[Unit] = {
-    println("creating a person")
-    val t = personCollection.flatMap(_.insert.one(person).map(_ => {}))
-    println(s"the person = $t")
-    t
+    val mongoClient: MongoClient = MongoClient("mongodb://localhost:27017")
+    val database: MongoDatabase = mongoClient.getDatabase("event-hub").withCodecRegistry(codecRegistry)
+    val collection: MongoCollection[Person] = database.getCollection("event-hub")
+
+    val t = collection.insertOne(person).subscribe(new Observer[InsertOneResult] {
+      override def onNext(result: InsertOneResult): Unit = println("Inserted")
+      override def onError(e: Throwable): Unit     = println(s"Failed  ex = ${e.toString}")
+      override def onComplete(): Unit              = println("Completed")
+    })
+
+    Thread.sleep(1000)
+    Future.successful(())
   }
 
-  def updatePerson(person: Person): Future[Int] = {
-    val selector = document(
-      "firstName" -> person.firstName,
-      "lastName" -> person.lastName
-    )
 
-    // Update the matching person
-    personCollection.flatMap(_.update.one(selector, person).map(_.n))
-  }
 
-  implicit def personReader: BSONDocumentReader[Person] = Macros.reader[Person]
-  // or provide a custom one
 
-  def findPersonByAge(age: Int): Future[List[Person]] =
-    personCollection.flatMap(_.find(document("age" -> age)). // query builder
-      cursor[Person](). // using the result cursor
-      collect[List](-1, Cursor.FailOnError[List[Person]]()))
-
-  override def now: DateTime =
-    DateTime.now
-
-  override lazy val workItemFields: WorkItemFieldNames =
-    new WorkItemFieldNames {
-      val receivedAt   = "receivedAt"
-      val updatedAt    = "updatedAt"
-      val availableAt  = "receivedAt"
-      val status       = "status"
-      val id           = "_id"
-      val failureCount = "failureCount"
-    }
-
-  override val inProgressRetryAfterProperty: String =
-    "queue.retryAfter"
 
 }
 
-class WokeTest @Inject() () {
 
-}
-
-case class Person(firstName: String, lastName: String, age: Int)
 
 object Person {
-  implicit val residentFormat = Json.format[Person]
+  def apply(firstName: String, lastName: String): Person = Person(new ObjectId(), firstName, lastName);
 }
+case class Person(_id: ObjectId, firstName: String, lastName: String)

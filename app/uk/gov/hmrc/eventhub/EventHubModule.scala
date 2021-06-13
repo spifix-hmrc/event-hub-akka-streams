@@ -17,9 +17,9 @@
 package uk.gov.hmrc.eventhub
 
 import com.google.inject.{AbstractModule, Provides}
-import play.api.inject.Binding
-import play.api.{Configuration, Environment}
-import play.modules.reactivemongo.{ReactiveMongoComponent, ReactiveMongoComponentImpl}
+
+import play.modules.reactivemongo.{ReactiveMongoComponent}
+
 import uk.gov.hmrc.mongo.MongoConnector
 import uk.gov.hmrc.time.DateTimeUtils
 
@@ -31,6 +31,10 @@ class EventHubModule extends AbstractModule {
   @Singleton
   def mongoConnectorProvider(reactiveMongoComponent: ReactiveMongoComponent): MongoConnector =
     reactiveMongoComponent.mongoConnector
+
+//  @Provides
+//  @Singleton
+//  def preferencesMongoRepositoryProvider(repo: EventHubMongoRepository): EventHubRepository = repo
 
   override def configure(): Unit = {
     bind(classOf[DateTimeUtils]).to(classOf[TimeProvider])

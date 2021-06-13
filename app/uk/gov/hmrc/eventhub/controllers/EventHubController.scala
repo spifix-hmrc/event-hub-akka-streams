@@ -17,7 +17,7 @@
 package uk.gov.hmrc.eventhub.controllers
 
 import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
-import uk.gov.hmrc.eventhub.repository.{EventHubMongoRepository, Person}
+import uk.gov.hmrc.eventhub.repository.{Person}
 import uk.gov.hmrc.eventhub.service.EventService
 
 import javax.inject.{Inject, Singleton}
@@ -28,7 +28,7 @@ class EventHubController @Inject()(val controllerComponents: ControllerComponent
                                    eventService: EventService) extends BaseController {
 
   def publishEvent(topic: String) = Action { implicit request: Request[AnyContent] =>
-    eventService.createPerson(Person("jim", "collins", 21))
+    eventService.createPerson(Person("jim", "collins"))
     Ok(views.html.index())
   }
 }
