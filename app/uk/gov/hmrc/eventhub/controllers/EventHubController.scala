@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.eventhub.controllers
 
+import play.api.libs.json.{JsError, Json}
 import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
-import uk.gov.hmrc.eventhub.repository.{Person}
+import uk.gov.hmrc.eventhub.model.Event
 import uk.gov.hmrc.eventhub.service.EventService
 
 import javax.inject.{Inject, Singleton}
@@ -27,8 +28,23 @@ import uk.gov.hmrc.workitem._
 class EventHubController @Inject()(val controllerComponents: ControllerComponents,
                                    eventService: EventService) extends BaseController {
 
-  def publishEvent(topic: String) = Action { implicit request: Request[AnyContent] =>
-    eventService.createPerson(Person("jim", "collins"))
+  def publishEvent(topic: String) = Action(parse.json) { implicit request =>
+    println(s"pbu event topic $topic ${request.body}")
+    val event = request.body.validate[Event]
+    println(s"parsed the event $event")
+    event.fold(
+      errors => {
+        BadRequest(Json.obj("message" -> JsError.toJson(errors)))
+      },
+      e => {
+        eventService.processEvent(e)
+        Ok(views.html.index())
+      }
+    )
+  }
+
+  def index = Action {
+    println("index")
     Ok(views.html.index())
   }
 }

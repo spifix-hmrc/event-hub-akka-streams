@@ -7,4 +7,6 @@
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
 
-GET /event-hub/publish/:topic      uk.gov.hmrc.eventhub.controllers.EventHubController.publishEvent(topic)
+POST /event-hub/publish/:topic      uk.gov.hmrc.eventhub.controllers.EventHubController.publishEvent(topic)
+
+GET / uk.gov.hmrc.eventhub.controllers.EventHubController.index

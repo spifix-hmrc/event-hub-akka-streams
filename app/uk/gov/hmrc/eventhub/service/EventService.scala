@@ -16,14 +16,15 @@
 
 package uk.gov.hmrc.eventhub.service
 
-import uk.gov.hmrc.eventhub.repository.{EventHubRepository, Person}
+import uk.gov.hmrc.eventhub.model.Event
+import uk.gov.hmrc.eventhub.repository.{EventHubRepository}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
 class EventService @Inject()( eventHubRepository: EventHubRepository ) {
-  def createPerson(person: Person): Future[Unit] = {
-    eventHubRepository.createPerson(person)
+  def processEvent(event: Event): Future[Unit] = {
+    eventHubRepository.saveEvent(event)
   }
 }
