@@ -9,4 +9,6 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 
 POST /event-hub/publish/:topic      uk.gov.hmrc.eventhub.controllers.EventHubController.publishEvent(topic)
 
+POST /subscriber/:topic uk.gov.hmrc.eventhub.controllers.EventHubController.testSubsriber(topic)
+
 GET / uk.gov.hmrc.eventhub.controllers.EventHubController.index

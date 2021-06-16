@@ -17,34 +17,44 @@
 package uk.gov.hmrc.eventhub.controllers
 
 import play.api.libs.json.{JsError, Json}
-import play.api.mvc.{AnyContent, BaseController, ControllerComponents, Request}
-import uk.gov.hmrc.eventhub.model.Event
-import uk.gov.hmrc.eventhub.service.EventService
+import play.api.mvc.{ BaseController, ControllerComponents}
+import uk.gov.hmrc.eventhub.model.{Event, SaveError, Subscriber}
+import uk.gov.hmrc.eventhub.service.PublishEventService
 
-import javax.inject.{Inject, Singleton}
-import uk.gov.hmrc.workitem._
+import javax.inject.{Inject, Named, Singleton}
+
+
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class EventHubController @Inject()(val controllerComponents: ControllerComponents,
-                                   eventService: EventService) extends BaseController {
+                                   eventService: PublishEventService)
+                                  (implicit ec: ExecutionContext)extends BaseController {
 
-  def publishEvent(topic: String) = Action(parse.json) { implicit request =>
-    println(s"pbu event topic $topic ${request.body}")
+  def publishEvent(topic: String) = Action.async(parse.json) { implicit request =>
     val event = request.body.validate[Event]
-    println(s"parsed the event $event")
     event.fold(
       errors => {
-        BadRequest(Json.obj("message" -> JsError.toJson(errors)))
+        Future.successful(BadRequest(Json.obj("message" -> JsError.toJson(errors))))
       },
       e => {
-        eventService.processEvent(e)
-        Ok(views.html.index())
+        eventService.processEvent(topic, e).map{ r =>
+          if ( r == SaveError) InternalServerError
+          else Created(s"$r")
+        }
       }
     )
   }
 
+  def testSubsriber(topic: String) = Action(parse.json) { implicit request =>
+    println(s"received event for topic $topic, body ${request.body}")
+    topic match {
+      case "fail" => InternalServerError
+      case _ => Accepted
+    }
+  }
+
   def index = Action {
-    println("index")
     Ok(views.html.index())
   }
 }

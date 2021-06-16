@@ -14,17 +14,21 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.eventhub.service
+package uk.gov.hmrc.eventhub.model
 
-import uk.gov.hmrc.eventhub.model.Event
-import uk.gov.hmrc.eventhub.repository.{EventHubRepository}
+import scala.collection.JavaConverters._
+import com.typesafe.config.{Config, ConfigValue}
+import play.api.ConfigLoader
 
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import java.util
 
-@Singleton
-class EventService @Inject()( eventHubRepository: EventHubRepository ) {
-  def processEvent(event: Event): Future[Unit] = {
-    eventHubRepository.saveEvent(event)
-  }
+case class Subscriber(topic: String, endpoint: String)
+
+object Subscriber {
+  implicit val configLoader: ConfigLoader[Map[String, List[Subscriber]]] = (rootConfig: Config, path: String) =>
+    rootConfig.getList(path).asScala.toList.map { cv =>
+      val c = cv.atKey("s")
+      Subscriber(c.getString("s.topic"), c.getString("s.endpoint"))
+    }.groupBy(_.topic)
+
 }

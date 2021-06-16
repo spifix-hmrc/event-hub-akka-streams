@@ -17,14 +17,19 @@
 package uk.gov.hmrc.eventhub
 
 import com.google.inject.{AbstractModule, Provides}
-
-import play.modules.reactivemongo.{ReactiveMongoComponent}
-
+import play.api.{Configuration, Logger}
+import play.modules.reactivemongo.ReactiveMongoComponent
 import uk.gov.hmrc.mongo.MongoConnector
 import uk.gov.hmrc.time.DateTimeUtils
+import play.api.libs.concurrent.AkkaGuiceSupport
 
-import javax.inject.Singleton
-class EventHubModule extends AbstractModule {
+import javax.inject.{Named, Singleton}
+import uk.gov.hmrc.eventhub.actors.EventActor
+import uk.gov.hmrc.eventhub.model.Subscriber
+
+
+class EventHubModule extends AbstractModule  with AkkaGuiceSupport {
+
 
 
   @Provides
@@ -32,13 +37,18 @@ class EventHubModule extends AbstractModule {
   def mongoConnectorProvider(reactiveMongoComponent: ReactiveMongoComponent): MongoConnector =
     reactiveMongoComponent.mongoConnector
 
-//  @Provides
-//  @Singleton
-//  def preferencesMongoRepositoryProvider(repo: EventHubMongoRepository): EventHubRepository = repo
 
   override def configure(): Unit = {
     bind(classOf[DateTimeUtils]).to(classOf[TimeProvider])
+    bindActor[EventActor]("event-actor")
     super.configure()
+  }
+
+  @Provides
+  @Named("eventSubscribers")
+  @Singleton
+  def configFeatureFlag(configuration: Configuration): Map[String, List[Subscriber]] = {
+    configuration.get[Map[String, List[Subscriber]]]("subscribers")
   }
 }
 
