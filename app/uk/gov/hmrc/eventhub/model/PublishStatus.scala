@@ -16,10 +16,16 @@
 
 package uk.gov.hmrc.eventhub.model
 
-sealed abstract class PublishStatus
+sealed abstract class PublishStatus{
+  def isPublishEvent: Boolean = this match {
+    case PublishEvent(_) => true
+    case _ => false
+  }
+}
+
 case object DuplicateEvent extends PublishStatus
 case object NoSubscribers extends PublishStatus
 case object SaveError extends PublishStatus
-case class FoundSubscribers(subscribers: List[Subscriber]) extends PublishStatus
-case class PublishEvent(subscribers: List[Subscriber]) extends PublishStatus
+case class FoundSubscribers(subscribers: List[SubscriberWorkItem]) extends PublishStatus
+case class PublishEvent(subscribers: List[SubscriberWorkItem]) extends PublishStatus
 

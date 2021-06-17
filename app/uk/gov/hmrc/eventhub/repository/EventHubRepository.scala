@@ -41,10 +41,6 @@ class EventHubRepository @Inject()(mongo: MongoComponent)(implicit ec: Execution
 
   def findEventByMessageId(messageId: UUID): Future[MongoEvent] =
     collection.find(equal("event.messageId", messageId.toString)).first().toFuture()
-
-
-
-
 }
 
 

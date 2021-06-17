@@ -19,12 +19,12 @@ package uk.gov.hmrc.eventhub.actors
 import akka.actor.{Actor, Status}
 import akka.pattern.pipe
 import uk.gov.hmrc.eventhub.actors.SendEvent._
-import uk.gov.hmrc.eventhub.model.{Event, Subscriber}
+import uk.gov.hmrc.eventhub.model.{Event, Subscriber, SubscriberWorkItem}
 import uk.gov.hmrc.eventhub.service.SubscriberEventService
 
 import scala.concurrent.ExecutionContextExecutor
 
-class SendEvent(subService: SubscriberEventService, s: Subscriber, e: Event) extends Actor {
+class SendEvent(subService: SubscriberEventService, s: SubscriberWorkItem, e: Event) extends Actor {
   implicit val exec: ExecutionContextExecutor = context.dispatcher
   subService.sendEventToSubscriber(s, e) pipeTo self
 

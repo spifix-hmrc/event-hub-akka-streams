@@ -17,10 +17,10 @@
 package uk.gov.hmrc.eventhub.model
 
 import scala.collection.JavaConverters._
-import com.typesafe.config.{Config, ConfigValue}
+import com.typesafe.config.Config
 import play.api.ConfigLoader
+import play.api.libs.json.Json
 
-import java.util
 
 case class Subscriber(topic: String, endpoint: String)
 
@@ -30,5 +30,7 @@ object Subscriber {
       val c = cv.atKey("s")
       Subscriber(c.getString("s.topic"), c.getString("s.endpoint"))
     }.groupBy(_.topic)
+
+  implicit val fmt = Json.format[Subscriber]
 
 }

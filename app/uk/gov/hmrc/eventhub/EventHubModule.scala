@@ -17,10 +17,7 @@
 package uk.gov.hmrc.eventhub
 
 import com.google.inject.{AbstractModule, Provides}
-import play.api.{Configuration, Logger}
-import play.modules.reactivemongo.ReactiveMongoComponent
-import uk.gov.hmrc.mongo.MongoConnector
-import uk.gov.hmrc.time.DateTimeUtils
+import play.api.{Configuration}
 import play.api.libs.concurrent.AkkaGuiceSupport
 
 import javax.inject.{Named, Singleton}
@@ -32,14 +29,10 @@ class EventHubModule extends AbstractModule  with AkkaGuiceSupport {
 
 
 
-  @Provides
-  @Singleton
-  def mongoConnectorProvider(reactiveMongoComponent: ReactiveMongoComponent): MongoConnector =
-    reactiveMongoComponent.mongoConnector
+
 
 
   override def configure(): Unit = {
-    bind(classOf[DateTimeUtils]).to(classOf[TimeProvider])
     bindActor[EventActor]("event-actor")
     super.configure()
   }
@@ -52,4 +45,3 @@ class EventHubModule extends AbstractModule  with AkkaGuiceSupport {
   }
 }
 
-class TimeProvider extends DateTimeUtils

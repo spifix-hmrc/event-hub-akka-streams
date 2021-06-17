@@ -20,19 +20,23 @@ import akka.actor._
 
 import javax.inject._
 import play.api.Configuration
-import uk.gov.hmrc.eventhub.model.{Event, Subscriber}
+import uk.gov.hmrc.eventhub.model.{Event, Subscriber, SubscriberWorkItem}
 import uk.gov.hmrc.eventhub.service.SubscriberEventService
+
+import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.duration.DurationInt
 
 object EventActor {
   def props = Props[EventActor]
 
-  case class SendEvents(subscribers: List[Subscriber], e: Event)
+  case class SendEvents(subscribers: List[SubscriberWorkItem], e: Event)
+  case object ProcessSubscribers
 }
 
 class EventActor @Inject() (subService: SubscriberEventService) extends Actor {
   import EventActor._
-
-
+  implicit val exec: ExecutionContextExecutor = context.dispatcher
+  context.system.scheduler.scheduleWithFixedDelay(1.second, 5.minutes, self, ProcessSubscribers)
 
   def receive = {
     case SendEvents(s, e) =>
@@ -40,5 +44,6 @@ class EventActor @Inject() (subService: SubscriberEventService) extends Actor {
       s.foreach{s =>
         context.actorOf(Props(new SendEvent(subService, s, e)))
       }
+    case ProcessSubscribers => println("processing subscribers")
   }
 }

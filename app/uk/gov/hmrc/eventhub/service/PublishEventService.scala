@@ -17,27 +17,23 @@
 package uk.gov.hmrc.eventhub.service
 
 import akka.actor.ActorRef
-import com.mongodb.client.result.InsertOneResult
-import org.mongodb.scala.{Observer, SingleObservable}
-import org.mongodb.scala.result.InsertOneResult
-import uk.gov.hmrc.eventhub.actors.EventActor.{SendEvents}
-import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, FoundSubscribers, MongoEvent, NoSubscribers, PublishEvent, PublishStatus, SaveError, Subscriber}
-import uk.gov.hmrc.eventhub.repository.EventHubRepository
+import uk.gov.hmrc.eventhub.actors.EventActor.SendEvents
+import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, FoundSubscribers, MongoEvent, NoSubscribers, PublishEvent, PublishStatus, SaveError, Subscriber, SubscriberWorkItem}
+import uk.gov.hmrc.eventhub.repository.{EventHubRepository, SubscriberQueueRepository}
 
-import java.util.UUID
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
-class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Named("eventSubscribers") eventSubscribers: Map[String, List[Subscriber]],
+class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
+                                    subQueueRepository: SubscriberQueueRepository, @Named("eventSubscribers") eventSubscribers: Map[String, List[Subscriber]],
                                     @Named("event-actor") eventActor: ActorRef ) {
 
   def processEvent(topic: String, event: Event): Future[PublishStatus] =
     for {
       a <- isNewEventWithSubscibers(topic, event)
-      b <- saveEvent(a, event)
+      b <- saveSubQueue(a, event)
     } yield {
       b match {
         case PublishEvent(l) => eventActor ! SendEvents(l, event)
@@ -46,20 +42,16 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Nam
       b
     }
 
-
-
-
   def isNewEventWithSubscibers(topic: String, event: Event): Future[PublishStatus] =
-    eventSubscribers.get(topic) match {
-      case None => Future.successful(NoSubscribers)
-      case Some(value) => eventHubRepository.findEventByMessageId(event.messageId).map {
+    getSubscriberWorkItems(event, eventSubscribers.get(topic)) match {
+      case List() => Future.successful(NoSubscribers)
+      case ls => eventHubRepository.findEventByMessageId(event.messageId).map {
         {
-          case null => FoundSubscribers(value)
+          case null => FoundSubscribers(ls)
           case _ => DuplicateEvent
         }
       }
     }
-
 
   def saveEvent(status: PublishStatus, event: Event): Future[PublishStatus] = status match {
     case FoundSubscribers(v) => eventHubRepository.saveEvent(event).map { res =>
@@ -68,6 +60,21 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository, @Nam
     }
     case _ => Future.successful(status)
   }
+
+  def saveSubQueue(status: PublishStatus, event: Event): Future[PublishStatus] = status match {
+    case FoundSubscribers(v) =>
+      eventHubRepository.saveEvent(event).flatMap{res =>
+        if (res.wasAcknowledged()) {
+          subQueueRepository.addSubscriberWorkItems(v).map(_ => PublishEvent(v))
+        } else Future.successful(SaveError)
+      }
+    case _ => Future.successful(status)
+  }
+
+  def getSubscriberWorkItems(e: Event, os: Option[List[Subscriber]]): List[SubscriberWorkItem] =
+    os.fold(List.empty[SubscriberWorkItem])(ls => ls map(SubscriberWorkItem(_, e)))
+
+
 
 
 }

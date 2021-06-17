@@ -17,26 +17,12 @@
 package uk.gov.hmrc.eventhub.model
 
 import org.bson.types.ObjectId
-import java.time.LocalDateTime
-import org.mongodb.scala.Document
-import play.api.libs.json.{Format, JsObject, JsValue, Json}
+import play.api.libs.json.Json
 import uk.gov.hmrc.mongo.play.json.formats.MongoFormats.Implicits.objectIdFormat
-import play.api.libs.json.DefaultReads
 
+case class SubscriberWorkItem(_id: ObjectId, subscriber: Subscriber, event: Event)
 
-import java.util.UUID
-
-
-case class Event(messageId: UUID, subject: Option[String], timestamp: LocalDateTime, event: JsValue)
-
-object Event {
-
-  implicit val fmt = Json.format[Event]
-}
-
-case class MongoEvent(_id: ObjectId, event: Event)
-
-object MongoEvent {
-  def apply(event: Event): MongoEvent = MongoEvent(ObjectId.get, event)
-  implicit val fmt = Json.format[MongoEvent]
+object SubscriberWorkItem {
+  def apply(subscriber: Subscriber, event: Event): SubscriberWorkItem = SubscriberWorkItem(ObjectId.get, subscriber, event)
+  implicit val fmt = Json.format[SubscriberWorkItem]
 }

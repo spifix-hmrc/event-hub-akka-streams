@@ -20,7 +20,7 @@ import com.google.inject.Inject
 import play.api.http.Status.ACCEPTED
 import uk.gov.hmrc.eventhub.actors.SendEvent.{FailedToSend, SendStatus, Sent}
 import uk.gov.hmrc.eventhub.connector.EventConnector
-import uk.gov.hmrc.eventhub.model.{Event, Subscriber}
+import uk.gov.hmrc.eventhub.model.{Event, SubscriberWorkItem}
 
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
@@ -29,8 +29,8 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SubscriberEventService @Inject()(eventConnector: EventConnector)(implicit ec: ExecutionContext){
 
-  def sendEventToSubscriber(s: Subscriber, e: Event): Future[SendStatus] = {
-    eventConnector.postEvent(e, s.endpoint).map { r =>
+  def sendEventToSubscriber(s: SubscriberWorkItem, e: Event): Future[SendStatus] = {
+    eventConnector.postEvent(e, s.subscriber.endpoint).map { r =>
       r.status match {
         case ACCEPTED => Sent
         case _ => FailedToSend
