@@ -17,23 +17,18 @@
 package uk.gov.hmrc.eventhub
 
 import com.google.inject.{AbstractModule, Provides}
-import play.api.{Configuration}
+import play.api.Configuration
 import play.api.libs.concurrent.AkkaGuiceSupport
 
 import javax.inject.{Named, Singleton}
-import uk.gov.hmrc.eventhub.actors.EventActor
-import uk.gov.hmrc.eventhub.model.Subscriber
+import uk.gov.hmrc.eventhub.actors.SubscribersQueueController
+import uk.gov.hmrc.eventhub.model.{Subscriber, Topic}
 
 
 class EventHubModule extends AbstractModule  with AkkaGuiceSupport {
 
-
-
-
-
-
   override def configure(): Unit = {
-    bindActor[EventActor]("event-actor")
+    bindActor[SubscribersQueueController]("event-actor")
     super.configure()
   }
 
@@ -42,6 +37,13 @@ class EventHubModule extends AbstractModule  with AkkaGuiceSupport {
   @Singleton
   def configFeatureFlag(configuration: Configuration): Map[String, List[Subscriber]] = {
     configuration.get[Map[String, List[Subscriber]]]("subscribers")
+  }
+
+  @Provides
+  @Named("eventTopics")
+  @Singleton
+  def configTopics(configuration: Configuration): Map[String, List[Topic]] = {
+    configuration.get[Map[String, List[Topic]]]("topics")
   }
 }
 

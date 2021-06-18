@@ -38,15 +38,15 @@ class SubscriberQueueRepository @Inject()(configuration : Configuration, mongo: 
   override val inProgressRetryAfter: Duration =
     configuration.underlying.getDuration("queue.retryAfter")
 
-  def addSubscriberWorkItems(s: Seq[SubscriberWorkItem]): Future[Seq[WorkItem[SubscriberWorkItem]]] ={
+  val numberOfRetries: Int = configuration.underlying.getInt("queue.numberOfRetries")
+
+  val retryFailedAfter: Duration = configuration.underlying.getDuration("queue.retryFailedAfter")
+
+  def addSubscriberWorkItems(s: Seq[SubscriberWorkItem]): Future[Seq[WorkItem[SubscriberWorkItem]]] = {
     println(s"subscribing the following $s")
-    try {
-      pushNewBatch(s)
-    } catch {
-      case e => println(s"casthc ec $e")
-        e
-    }
-    Future.successful(Seq.empty)
+    pushNewBatch(s)
   }
+
+
 
 }

@@ -26,15 +26,15 @@ import uk.gov.hmrc.eventhub.service.SubscriberEventService
 import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 
-object EventActor {
-  def props = Props[EventActor]
+object SubscribersQueueController {
+  def props = Props[SubscribersQueueController]
 
   case class SendEvents(subscribers: List[SubscriberWorkItem], e: Event)
   case object ProcessSubscribers
 }
 
-class EventActor @Inject() (subService: SubscriberEventService) extends Actor {
-  import EventActor._
+class SubscribersQueueController @Inject()(subService: SubscriberEventService) extends Actor {
+  import SubscribersQueueController._
   implicit val exec: ExecutionContextExecutor = context.dispatcher
   context.system.scheduler.scheduleWithFixedDelay(1.second, 5.minutes, self, ProcessSubscribers)
 
@@ -44,6 +44,7 @@ class EventActor @Inject() (subService: SubscriberEventService) extends Actor {
       s.foreach{s =>
         context.actorOf(Props(new SendEvent(subService, s, e)))
       }
-    case ProcessSubscribers => println("processing subscribers")
+    case ProcessSubscribers =>
+      println("processing subscribers")
   }
 }

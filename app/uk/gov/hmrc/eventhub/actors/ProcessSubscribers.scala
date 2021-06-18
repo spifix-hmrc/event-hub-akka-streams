@@ -14,19 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.eventhub.model
+package uk.gov.hmrc.eventhub.actors
 
-sealed abstract class PublishStatus{
-  def isPublishEvent: Boolean = this match {
-    case PublishEvent(_) => true
-    case _ => false
-  }
+class ProcessSubscribers {
+
 }
-
-case object DuplicateEvent extends PublishStatus
-case object NoSubscribers extends PublishStatus
-case object NoTopics extends PublishStatus
-case object SaveError extends PublishStatus
-case class FoundSubscribers(subscribers: List[SubscriberWorkItem]) extends PublishStatus
-case class PublishEvent(subscribers: List[SubscriberWorkItem]) extends PublishStatus
-

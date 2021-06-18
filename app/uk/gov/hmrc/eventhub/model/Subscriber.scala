@@ -17,20 +17,35 @@
 package uk.gov.hmrc.eventhub.model
 
 import scala.collection.JavaConverters._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigList, ConfigValue}
 import play.api.ConfigLoader
 import play.api.libs.json.Json
 
 
-case class Subscriber(topic: String, endpoint: String)
+case class Subscriber(name: String, endpoint: String)
 
 object Subscriber {
   implicit val configLoader: ConfigLoader[Map[String, List[Subscriber]]] = (rootConfig: Config, path: String) =>
     rootConfig.getList(path).asScala.toList.map { cv =>
-      val c = cv.atKey("s")
+      val c: Config = cv.atKey("s")
       Subscriber(c.getString("s.topic"), c.getString("s.endpoint"))
-    }.groupBy(_.topic)
+    }.groupBy(_.name)
 
   implicit val fmt = Json.format[Subscriber]
 
+}
+
+case class Topic(name: String, subscribers: List[Subscriber])
+
+object Topic {
+  implicit val configLoader: ConfigLoader[Map[String, List[Topic]]] = (rootConfig: Config, path: String) =>
+    rootConfig.getList(path).asScala.toList.map { cv: ConfigValue =>
+      val t = cv.atKey("t")
+      val name = t.getString("t.name")
+      val s = t.getList("t.subscribers").asScala.toList.map{ sv: ConfigValue =>
+        val s: Config = sv.atKey("s")
+        Subscriber(s.getString("s.name"), s.getString("s.endpoint"))
+      }
+      Topic(name, s)
+    }.groupBy(_.name)
 }

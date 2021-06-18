@@ -17,13 +17,11 @@
 package uk.gov.hmrc.eventhub.controllers
 
 import play.api.libs.json.{JsError, Json}
-import play.api.mvc.{ BaseController, ControllerComponents}
-import uk.gov.hmrc.eventhub.model.{Event, SaveError, Subscriber}
+import play.api.mvc.{BaseController, ControllerComponents}
+import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, NoSubscribers, NoTopics, SaveError, Subscriber}
 import uk.gov.hmrc.eventhub.service.PublishEventService
 
 import javax.inject.{Inject, Named, Singleton}
-
-
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
@@ -38,9 +36,12 @@ class EventHubController @Inject()(val controllerComponents: ControllerComponent
         Future.successful(BadRequest(Json.obj("message" -> JsError.toJson(errors))))
       },
       e => {
-        eventService.processEvent(topic, e).map{ r =>
-          if ( r == SaveError) InternalServerError
-          else Created(s"$r")
+        eventService.processEvent(topic, e).map{
+          case SaveError => InternalServerError
+          case NoTopics => NotFound("No such topic")
+          case NoSubscribers => Created("No Subscribers to Topic")
+          case DuplicateEvent => Created("Duplicate event")
+          case _ => Created
         }
       }
     )
