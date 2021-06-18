@@ -16,33 +16,27 @@
 
 package uk.gov.hmrc.eventhub.service
 
-import akka.actor.ActorRef
-import uk.gov.hmrc.eventhub.actors.SubscribersQueueController.SendEvents
-import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, FoundSubscribers, MongoEvent, NoSubscribers, NoTopics, PublishEvent, PublishStatus, SaveError, Subscriber, SubscriberWorkItem, Topic}
+import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents.{RemoveNone, RemoveStatus, RemoveSuccess}
+import uk.gov.hmrc.eventhub.model._
 import uk.gov.hmrc.eventhub.repository.{EventHubRepository, SubscriberQueueRepository}
 
 import javax.inject.{Inject, Named, Singleton}
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
 class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
                                     subQueueRepository: SubscriberQueueRepository,
-                                    @Named("eventTopics") topics: Map[String, List[Topic]],
-                                    @Named("event-actor") eventActor: ActorRef ) {
+                                    @Named("eventTopics") topics: Map[String, List[Topic]]
+                                     ) {
 
 
   def processEvent(topic: String, event: Event): Future[PublishStatus] =
     for {
       a <- isNewEventWithSubscibers(topic, event)
       b <- saveSubQueue(a, event)
-    } yield {
-      b match {
-        case PublishEvent(l) => eventActor ! SendEvents(l, event)
-        case _ => ()
-      }
-      b
-    }
+    } yield b
+
 
   def isNewEventWithSubscibers(topic: String, event: Event): Future[PublishStatus] = {
     topics.get(topic) match {
@@ -81,6 +75,11 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
   def getSubscriberWorkItems(e: Event, ls: List[Subscriber]): List[SubscriberWorkItem] =
     ls map(SubscriberWorkItem(_, e))
 
+
+  def removeExpiredEvents: Future[RemoveStatus] = eventHubRepository.removeExpiredEvents.map{ r =>
+    if (r.wasAcknowledged()) RemoveSuccess(r.getDeletedCount)
+    else RemoveNone
+  }
 
 
 

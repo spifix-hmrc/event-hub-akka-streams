@@ -18,10 +18,10 @@ package uk.gov.hmrc.eventhub.controllers
 
 import play.api.libs.json.{JsError, Json}
 import play.api.mvc.{BaseController, ControllerComponents}
-import uk.gov.hmrc.eventhub.model.{DuplicateEvent, Event, NoSubscribers, NoTopics, SaveError, Subscriber}
+import uk.gov.hmrc.eventhub.model._
 import uk.gov.hmrc.eventhub.service.PublishEventService
 
-import javax.inject.{Inject, Named, Singleton}
+import javax.inject.{Inject,  Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton

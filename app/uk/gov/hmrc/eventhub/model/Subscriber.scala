@@ -17,7 +17,7 @@
 package uk.gov.hmrc.eventhub.model
 
 import scala.collection.JavaConverters._
-import com.typesafe.config.{Config, ConfigList, ConfigValue}
+import com.typesafe.config.{Config, ConfigValue}
 import play.api.ConfigLoader
 import play.api.libs.json.Json
 

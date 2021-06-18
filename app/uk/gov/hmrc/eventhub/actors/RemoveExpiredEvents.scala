@@ -17,32 +17,30 @@
 package uk.gov.hmrc.eventhub.actors
 
 import akka.actor.{Actor, Status}
+import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents._
+import uk.gov.hmrc.eventhub.service.PublishEventService
 import akka.pattern.pipe
-import uk.gov.hmrc.eventhub.actors.SendEvent._
-import uk.gov.hmrc.eventhub.model.{Event, SubscriberWorkItem}
-import uk.gov.hmrc.eventhub.service.SubscriberEventService
 
 import scala.concurrent.ExecutionContextExecutor
 
-class SendEvent(subService: SubscriberEventService, s: SubscriberWorkItem, e: Event) extends Actor {
+class RemoveExpiredEvents(pubService: PublishEventService) extends Actor {
   implicit val exec: ExecutionContextExecutor = context.dispatcher
-  subService.sendEventToSubscriber(s, e) pipeTo self
 
   override def receive: Receive = {
-    case Sent => println("sent the event")
-      stop()
-    case FailedToSend => println("failed to send the event")
-      stop()
-    case _: Status.Failure => println("failure")
-      stop()
-  }
-  def stop(): Unit = {
-    context.stop(self)
+    case RemoveExpired => println("RemoveExpired")
+      pubService.removeExpiredEvents pipeTo self
+    case RemoveSuccess(n) => println(s"removed $n events")
+      context.stop(self)
+    case RemoveNone => println("remove no events")
+      context.stop(self)
+    case _: Status.Failure => println("Failed to delete")
+      context.stop(self)
   }
 }
 
-object SendEvent {
-  abstract class SendStatus
-  case object Sent extends SendStatus
-  case object FailedToSend extends SendStatus
+object RemoveExpiredEvents {
+  case object RemoveExpired
+  sealed abstract class RemoveStatus
+  case class RemoveSuccess(num: Long) extends RemoveStatus
+  case object RemoveNone extends RemoveStatus
 }
