@@ -46,7 +46,7 @@ class EventHubRepository @Inject()(configuration : Configuration, mongo: MongoCo
   def saveEvent(event: Event): Future[InsertOneResult] = collection.insertOne(MongoEvent.newMongoEvent(Instant.now, event)).toFuture()
 
   def findEventByMessageId(messageId: UUID): Future[MongoEvent] =
-    collection.find(equal("event.messageId", messageId.toString)).first().toFuture()
+    collection.find(equal("event.eventId", messageId.toString)).first().toFuture()
 
   def removeExpiredEvents: Future[DeleteResult] =
     collection.deleteMany(Filters.lt("createdAt", Instant.now.minus(deleteEventAfter))).toFuture()
