@@ -16,8 +16,9 @@
 
 package uk.gov.hmrc.eventhub.repository
 
-import org.mongodb.scala.model.Filters
+import org.mongodb.scala.model.{Filters, IndexModel, IndexOptions}
 import org.mongodb.scala.model.Filters.equal
+import org.mongodb.scala.model.Indexes.ascending
 import org.mongodb.scala.result.{DeleteResult, InsertOneResult}
 import play.api.Configuration
 import uk.gov.hmrc.eventhub.model.{Event, MongoEvent}
@@ -29,13 +30,14 @@ import uk.gov.hmrc.mongo.play.json.PlayMongoRepository
 import java.util.UUID
 import javax.inject.Inject
 import java.time.{Duration, Instant}
+import java.util.concurrent.TimeUnit
 
 
 class EventHubRepository @Inject()(configuration : Configuration, mongo: MongoComponent)(implicit ec: ExecutionContext) extends PlayMongoRepository[MongoEvent](
   mongoComponent = mongo,
   collectionName = "event-hub",
   domainFormat   = MongoEvent.fmt,
-  indexes        = Seq()
+  indexes        =  Seq(IndexModel(ascending("createdAt"),IndexOptions().expireAfter(300, TimeUnit.SECONDS)))
 ){
 
   private val deleteEventAfter: Duration =

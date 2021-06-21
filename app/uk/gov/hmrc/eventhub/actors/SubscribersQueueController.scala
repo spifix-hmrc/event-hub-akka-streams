@@ -20,7 +20,6 @@ import akka.actor._
 import uk.gov.hmrc.eventhub.actors.ProcessSubscribers.GetEvents
 
 import javax.inject._
-import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents.RemoveExpired
 import uk.gov.hmrc.eventhub.service.{PublishEventService, SubscriberEventService}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -37,15 +36,10 @@ class SubscribersQueueController @Inject()(subService: SubscriberEventService, p
   import SubscribersQueueController._
   implicit val exec: ExecutionContextExecutor = context.dispatcher
   context.system.scheduler.scheduleWithFixedDelay(1.second, 2.minutes, self, ProcessSubscribers)
-  context.system.scheduler.scheduleWithFixedDelay(1.second, 1.minute, self, CleanupEvents)
 
   def receive = {
     case ProcessSubscribers =>
       println("processing subscribers")
       context.actorOf(Props(new ProcessSubscribers(subService, pubService))) ! GetEvents
-
-    case CleanupEvents =>
-      println("Removing expired events")
-      context.actorOf(Props(new RemoveExpiredEvents(pubService))) ! RemoveExpired
   }
 }

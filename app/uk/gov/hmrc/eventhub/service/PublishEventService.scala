@@ -17,7 +17,6 @@
 package uk.gov.hmrc.eventhub.service
 
 import uk.gov.hmrc.eventhub.actors.GetEvent.{GetEventStatus, NewEvent, NoNewEvents}
-import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents.{RemoveNone, RemoveStatus, RemoveSuccess}
 import uk.gov.hmrc.eventhub.actors.SendEvent
 import uk.gov.hmrc.eventhub.model._
 import uk.gov.hmrc.eventhub.repository.{EventHubRepository, SubscriberQueueRepository}
@@ -77,12 +76,6 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
 
   def getSubscriberWorkItems(e: Event, ls: List[Subscriber]): List[SubscriberWorkItem] =
     ls map(SubscriberWorkItem(_, e))
-
-
-  def removeExpiredEvents: Future[RemoveStatus] = eventHubRepository.removeExpiredEvents.map{ r =>
-    if (r.wasAcknowledged()) RemoveSuccess(r.getDeletedCount)
-    else RemoveNone
-  }
 
   def getEvent: Future[GetEventStatus] = {
     println("getting events from the workitem queue")
