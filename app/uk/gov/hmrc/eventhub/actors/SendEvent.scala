@@ -22,18 +22,31 @@ import uk.gov.hmrc.eventhub.actors.SendEvent._
 import uk.gov.hmrc.eventhub.model.SubscriberWorkItem
 import uk.gov.hmrc.eventhub.service.{PublishEventService, SubscriberEventService}
 import uk.gov.hmrc.mongo.workitem.WorkItem
+import scala.concurrent.duration.DurationInt
 
 import scala.concurrent.ExecutionContextExecutor
 
 class SendEvent(subService: SubscriberEventService, pubService: PublishEventService, w: WorkItem[SubscriberWorkItem]) extends Actor {
   implicit val exec: ExecutionContextExecutor = context.dispatcher
+  @volatile var failCount = 0
+
   subService.sendEventToSubscriber(w.item) pipeTo self
+
+
 
   override def receive: Receive = {
     case Sent => println("sent the event")
       pubService.deleteEvent(w) pipeTo self
-    case RetrySend => println("temporary failure to send the event")
-      pubService.permanentlyFailed(w) pipeTo self
+    case RetrySend =>
+      if (failCount < 5) {
+        failCount += 1
+        println(s"temporary failure to send the event trying again $failCount attempts")
+        context.system.scheduler.scheduleOnce(1.minute, self, SendAgain)
+      } else {
+        println(s"failure to send the event trying giving up after $failCount attempts")
+        pubService.permanentlyFailed(w) pipeTo self
+      }
+    case SendAgain => subService.sendEventToSubscriber(w.item) pipeTo self
     case PermanentFailure => println("permanent failure cannot send the event")
       pubService.permanentlyFailed(w) pipeTo self
     case _: Status.Failure => println("failure")
@@ -60,6 +73,7 @@ object SendEvent {
   case object PermanentFailure extends SendStatus
 
   //retry messages
+  case object SendAgain
 
   //perm fail messages
   sealed abstract class PermFailureStatus

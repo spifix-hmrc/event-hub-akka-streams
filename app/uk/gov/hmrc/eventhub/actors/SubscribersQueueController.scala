@@ -36,7 +36,7 @@ object SubscribersQueueController {
 class SubscribersQueueController @Inject()(subService: SubscriberEventService, pubService: PublishEventService) extends Actor {
   import SubscribersQueueController._
   implicit val exec: ExecutionContextExecutor = context.dispatcher
-  context.system.scheduler.scheduleWithFixedDelay(1.second, 5.minutes, self, ProcessSubscribers)
+  context.system.scheduler.scheduleWithFixedDelay(1.second, 2.minutes, self, ProcessSubscribers)
   context.system.scheduler.scheduleWithFixedDelay(1.second, 1.minute, self, CleanupEvents)
 
   def receive = {
