@@ -46,7 +46,7 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
       case Some(l) =>
         getSubscriberWorkItems(event, l.head.subscribers) match {
           case List() => Future.successful(NoSubscribers)
-          case ls => eventHubRepository.findEventByMessageId(event.messageId).map {
+          case ls => eventHubRepository.findEventByMessageId(event.eventId).map {
             {
               case null => FoundSubscribers(ls)
               case _ => DuplicateEvent

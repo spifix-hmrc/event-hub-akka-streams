@@ -30,7 +30,7 @@ import uk.gov.hmrc.mongo.play.json.formats.MongoJavatimeFormats
 import java.util.UUID
 
 
-case class Event(messageId: UUID, subject: Option[String], timestamp: LocalDateTime, event: JsValue)
+case class Event(eventId: UUID, subject: Option[String], timestamp: LocalDateTime, event: JsValue)
 
 object Event {
 
