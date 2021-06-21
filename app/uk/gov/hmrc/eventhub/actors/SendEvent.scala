@@ -19,21 +19,32 @@ package uk.gov.hmrc.eventhub.actors
 import akka.actor.{Actor, Status}
 import akka.pattern.pipe
 import uk.gov.hmrc.eventhub.actors.SendEvent._
-import uk.gov.hmrc.eventhub.model.{Event, SubscriberWorkItem}
-import uk.gov.hmrc.eventhub.service.SubscriberEventService
+import uk.gov.hmrc.eventhub.model.SubscriberWorkItem
+import uk.gov.hmrc.eventhub.service.{PublishEventService, SubscriberEventService}
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import scala.concurrent.ExecutionContextExecutor
 
-class SendEvent(subService: SubscriberEventService, s: SubscriberWorkItem, e: Event) extends Actor {
+class SendEvent(subService: SubscriberEventService, pubService: PublishEventService, w: WorkItem[SubscriberWorkItem]) extends Actor {
   implicit val exec: ExecutionContextExecutor = context.dispatcher
-  subService.sendEventToSubscriber(s, e) pipeTo self
+  subService.sendEventToSubscriber(w.item) pipeTo self
 
   override def receive: Receive = {
     case Sent => println("sent the event")
-      stop()
-    case FailedToSend => println("failed to send the event")
-      stop()
+      pubService.deleteEvent(w) pipeTo self
+    case RetrySend => println("temporary failure to send the event")
+      pubService.permanentlyFailed(w) pipeTo self
+    case PermanentFailure => println("permanent failure cannot send the event")
+      pubService.permanentlyFailed(w) pipeTo self
     case _: Status.Failure => println("failure")
+      stop()
+    case MarkedAsPermFailure => println("event marked as perm failure")
+      stop()
+    case FailedToMarkAsPermFailure => println("failed to perm fail event")
+      stop()
+    case DeleteEvent => println("processed event received by subscriber")
+      stop()
+    case FailedToDeleteEvent => println("error deleting completed event")
       stop()
   }
   def stop(): Unit = {
@@ -42,7 +53,21 @@ class SendEvent(subService: SubscriberEventService, s: SubscriberWorkItem, e: Ev
 }
 
 object SendEvent {
-  abstract class SendStatus
+  //send to subscriber messages
+  sealed abstract class SendStatus
   case object Sent extends SendStatus
-  case object FailedToSend extends SendStatus
+  case object RetrySend extends SendStatus
+  case object PermanentFailure extends SendStatus
+
+  //retry messages
+
+  //perm fail messages
+  sealed abstract class PermFailureStatus
+  case object MarkedAsPermFailure extends PermFailureStatus
+  case object FailedToMarkAsPermFailure extends PermFailureStatus
+
+  //delete event messages
+  sealed abstract class DeleteEventStatus
+  case object DeleteEvent extends DeleteEventStatus
+  case object FailedToDeleteEvent extends DeleteEventStatus
 }

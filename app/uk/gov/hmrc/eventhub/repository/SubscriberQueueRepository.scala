@@ -19,6 +19,7 @@ package uk.gov.hmrc.eventhub.repository
 import play.api.Configuration
 import uk.gov.hmrc.eventhub.model.SubscriberWorkItem
 import uk.gov.hmrc.mongo.MongoComponent
+import uk.gov.hmrc.mongo.workitem.ProcessingStatus.PermanentlyFailed
 import uk.gov.hmrc.mongo.workitem.{WorkItem, WorkItemFields, WorkItemRepository}
 
 import java.time.{Duration, Instant}
@@ -47,6 +48,16 @@ class SubscriberQueueRepository @Inject()(configuration : Configuration, mongo: 
     pushNewBatch(s)
   }
 
+  def getEvent: Future[Option[WorkItem[SubscriberWorkItem]]] =
+    pullOutstanding(now(), now())
+
+  def deleteEvent(e: WorkItem[SubscriberWorkItem]) = {
+    completeAndDelete(e.id)
+  }
+
+  def permanentlyFailed(e: WorkItem[SubscriberWorkItem]) = {
+    complete(e.id, PermanentlyFailed)
+  }
 
 
 }

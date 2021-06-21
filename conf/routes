@@ -10,5 +10,7 @@ GET     /assets/*file               controllers.Assets.versioned(path="/public",
 POST /event-hub/publish/:topic      uk.gov.hmrc.eventhub.controllers.EventHubController.publishEvent(topic)
 
 POST /subscriber/:topic uk.gov.hmrc.eventhub.controllers.EventHubController.testSubsriber(topic)
+POST /perm-fail-subscriber/:topic uk.gov.hmrc.eventhub.controllers.EventHubController.testPermFailSubsriber(topic)
+POST /temp-fail-subscriber/:topic uk.gov.hmrc.eventhub.controllers.EventHubController.testTempFailSubsriber(topic)
 
 GET / uk.gov.hmrc.eventhub.controllers.EventHubController.index

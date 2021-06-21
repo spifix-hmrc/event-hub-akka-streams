@@ -17,10 +17,10 @@
 package uk.gov.hmrc.eventhub.actors
 
 import akka.actor._
+import uk.gov.hmrc.eventhub.actors.ProcessSubscribers.GetEvents
 
 import javax.inject._
 import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents.RemoveExpired
-import uk.gov.hmrc.eventhub.model.{Event, SubscriberWorkItem}
 import uk.gov.hmrc.eventhub.service.{PublishEventService, SubscriberEventService}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -29,7 +29,6 @@ import scala.concurrent.duration.DurationInt
 object SubscribersQueueController {
   def props = Props[SubscribersQueueController]
 
-  case class SendEvents(subscribers: List[SubscriberWorkItem], e: Event)
   case object ProcessSubscribers
   case object CleanupEvents
 }
@@ -41,13 +40,10 @@ class SubscribersQueueController @Inject()(subService: SubscriberEventService, p
   context.system.scheduler.scheduleWithFixedDelay(1.second, 1.minute, self, CleanupEvents)
 
   def receive = {
-    case SendEvents(s, e) =>
-      println(s"sending events $s")
-      s.foreach{s =>
-        context.actorOf(Props(new SendEvent(subService, s, e)))
-      }
     case ProcessSubscribers =>
       println("processing subscribers")
+      context.actorOf(Props(new ProcessSubscribers(subService, pubService))) ! GetEvents
+
     case CleanupEvents =>
       println("Removing expired events")
       context.actorOf(Props(new RemoveExpiredEvents(pubService))) ! RemoveExpired

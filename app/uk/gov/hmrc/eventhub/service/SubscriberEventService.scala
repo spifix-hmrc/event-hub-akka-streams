@@ -17,10 +17,11 @@
 package uk.gov.hmrc.eventhub.service
 
 import com.google.inject.Inject
-import play.api.http.Status.ACCEPTED
-import uk.gov.hmrc.eventhub.actors.SendEvent.{FailedToSend, SendStatus, Sent}
+import play.api.http.Status
+
+import uk.gov.hmrc.eventhub.actors.SendEvent.{PermanentFailure, RetrySend, SendStatus, Sent}
 import uk.gov.hmrc.eventhub.connector.EventConnector
-import uk.gov.hmrc.eventhub.model.{Event, SubscriberWorkItem}
+import uk.gov.hmrc.eventhub.model.{SubscriberWorkItem}
 
 import javax.inject.Singleton
 import scala.concurrent.{ExecutionContext, Future}
@@ -29,12 +30,11 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class SubscriberEventService @Inject()(eventConnector: EventConnector)(implicit ec: ExecutionContext){
 
-  def sendEventToSubscriber(s: SubscriberWorkItem, e: Event): Future[SendStatus] = {
-    eventConnector.postEvent(e, s.subscriber.endpoint).map { r =>
-      r.status match {
-        case ACCEPTED => Sent
-        case _ => FailedToSend
-      }
+  def sendEventToSubscriber(s: SubscriberWorkItem): Future[SendStatus] = {
+    eventConnector.postEvent(s.event, s.subscriber.endpoint).map { r =>
+      if (Status.isSuccessful(r.status)) Sent
+      else if (Status.isClientError(r.status)) PermanentFailure
+      else RetrySend
     }
   }
 

@@ -49,10 +49,17 @@ class EventHubController @Inject()(val controllerComponents: ControllerComponent
 
   def testSubsriber(topic: String) = Action(parse.json) { implicit request =>
     println(s"received event for topic $topic, body ${request.body}")
-    topic match {
-      case "fail" => InternalServerError
-      case _ => Accepted
-    }
+    Accepted
+  }
+
+  def testPermFailSubsriber(topic: String) = Action(parse.json) { implicit request =>
+    println(s"received event for topic $topic, body ${request.body}")
+    BadRequest
+  }
+
+  def testTempFailSubsriber(topic: String) = Action(parse.json) { implicit request =>
+    println(s"received event for topic $topic, body ${request.body}")
+    InternalServerError
   }
 
   def index = Action {

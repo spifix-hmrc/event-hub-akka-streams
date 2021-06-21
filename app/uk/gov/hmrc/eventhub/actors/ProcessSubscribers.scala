@@ -16,6 +16,27 @@
 
 package uk.gov.hmrc.eventhub.actors
 
-class ProcessSubscribers {
+import akka.actor.{Actor, Props, Terminated}
+import uk.gov.hmrc.eventhub.actors.ProcessSubscribers._
+import uk.gov.hmrc.eventhub.model.SubscriberWorkItem
+import uk.gov.hmrc.eventhub.service.{PublishEventService, SubscriberEventService}
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
+class ProcessSubscribers(subService: SubscriberEventService, pubService: PublishEventService) extends Actor {
+
+  override def receive: Receive = {
+    case GetEvents => context.actorOf(Props(new GetEvent(pubService)))
+    case NewEvent(e) => println("processing new event")
+      context.watch(context.actorOf(Props(new GetEvent(pubService))))
+      context.watch(context.actorOf(Props(new SendEvent(subService, pubService, e))))
+    case Terminated(_) => if (context.children.isEmpty) {
+      println("all events processed")
+      context.stop(self)
+    }
+  }
+}
+
+object ProcessSubscribers {
+  case object GetEvents
+  case class NewEvent(e: WorkItem[SubscriberWorkItem])
 }

@@ -16,12 +16,15 @@
 
 package uk.gov.hmrc.eventhub.service
 
+import uk.gov.hmrc.eventhub.actors.GetEvent.{GetEventStatus, NewEvent, NoNewEvents}
 import uk.gov.hmrc.eventhub.actors.RemoveExpiredEvents.{RemoveNone, RemoveStatus, RemoveSuccess}
+import uk.gov.hmrc.eventhub.actors.SendEvent
 import uk.gov.hmrc.eventhub.model._
 import uk.gov.hmrc.eventhub.repository.{EventHubRepository, SubscriberQueueRepository}
+import uk.gov.hmrc.mongo.workitem.WorkItem
 
 import javax.inject.{Inject, Named, Singleton}
-import scala.concurrent.{Future}
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 @Singleton
@@ -81,8 +84,26 @@ class PublishEventService @Inject()(eventHubRepository: EventHubRepository,
     else RemoveNone
   }
 
+  def getEvent: Future[GetEventStatus] = {
+    println("getting events from the workitem queue")
+    subQueueRepository.getEvent.map {
+      case None => NoNewEvents
+      case Some(e) => NewEvent(e)
+    }
+  }
 
+  def deleteEvent(e: WorkItem[SubscriberWorkItem]): Future[SendEvent.DeleteEventStatus] = {
+    subQueueRepository.deleteEvent(e).map {
+      case true => SendEvent.DeleteEvent
+      case false => SendEvent.FailedToDeleteEvent
+    }
+  }
 
+  def permanentlyFailed(e: WorkItem[SubscriberWorkItem]): Future[SendEvent.PermFailureStatus] =
+    subQueueRepository.permanentlyFailed(e).map{
+      case true => SendEvent.MarkedAsPermFailure
+      case false => SendEvent.FailedToMarkAsPermFailure
+    }
 
 
 }
