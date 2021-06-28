@@ -40,8 +40,9 @@ class PushSubscriptionsService(
     .run()
 
   /**
-   * The message pattern actor alternative is also recursive, this is a consequence of pulling one item at a time as
-   * mongo does not support batch atomic transactions.
+   * The message passing actor alternative is also recursive, this is a consequence of pulling one item at a time as
+   * work item repo does not support batch pulls. Mongo has support for multi-document transaction but not using
+   * `findAndModify`, so perhaps this recursive polling approach with a scheduler is the only viable solution, for now.
    * We could tune the tick interval and degree of parallelism to increase throughput and/or start pushing from more
    * instances of this class.
    */
