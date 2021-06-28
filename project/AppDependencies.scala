@@ -23,7 +23,8 @@ object AppDependencies {
   val compile = Seq(ws,
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-play-28"      % "0.50.0",
     "uk.gov.hmrc.mongo" %% "hmrc-mongo-work-item-repo-play-28" % "0.50.0",
-    "org.mongodb.scala" %% "mongo-scala-driver" % "2.9.0"
+    "org.mongodb.scala" %% "mongo-scala-driver" % "2.9.0",
+    "com.github.pureconfig" %% "pureconfig" % "0.16.0"
   )
   val test = Seq(
     "com.typesafe.play"      %% "play-test"                % current          % Test,

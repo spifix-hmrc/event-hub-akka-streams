@@ -31,7 +31,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class SubscriberEventService @Inject()(eventConnector: EventConnector)(implicit ec: ExecutionContext){
 
   def sendEventToSubscriber(s: SubscriberWorkItem): Future[SendStatus] = {
-    eventConnector.postEvent(s.event, s.subscriber.endpoint).map { r =>
+    eventConnector.postEvent(s.event, s.subscriber.uri.toString()).map { r =>
       if (Status.isSuccessful(r.status)) Sent
       else if (Status.isClientError(r.status)) PermanentFailure
       else RetrySend

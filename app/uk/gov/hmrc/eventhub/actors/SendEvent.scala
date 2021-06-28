@@ -75,13 +75,14 @@ object SendEvent {
   //retry messages
   case object SendAgain
 
+  sealed trait CompletionStatus
   //perm fail messages
-  sealed abstract class PermFailureStatus
+  sealed trait PermFailureStatus extends CompletionStatus
   case object MarkedAsPermFailure extends PermFailureStatus
   case object FailedToMarkAsPermFailure extends PermFailureStatus
 
   //delete event messages
-  sealed abstract class DeleteEventStatus
+  sealed trait DeleteEventStatus extends CompletionStatus
   case object DeleteEvent extends DeleteEventStatus
   case object FailedToDeleteEvent extends DeleteEventStatus
 }
