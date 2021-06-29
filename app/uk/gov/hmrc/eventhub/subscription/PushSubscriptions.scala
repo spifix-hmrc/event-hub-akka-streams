@@ -16,24 +16,34 @@
 
 package uk.gov.hmrc.eventhub.subscription
 
+import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.BoundedSourceQueue
-import uk.gov.hmrc.eventhub.model.{Subscriber, SubscriberWorkItem}
+import akka.stream.{Materializer, RestartSettings}
+import akka.stream.scaladsl.{RestartSource, Sink}
+import uk.gov.hmrc.eventhub.model.Subscriber
+import uk.gov.hmrc.eventhub.repository.SubscriberQueueRepository
 import uk.gov.hmrc.eventhub.service.PublishEventService
-import uk.gov.hmrc.mongo.workitem.WorkItem
 
+import scala.concurrent.duration._
 import javax.inject.Singleton
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class PushSubscriptions(subscribers: List[Subscriber], publishEventService: PublishEventService)
-                       (implicit actorSystem: ActorSystem, executionContext: ExecutionContext) {
+class PushSubscriptions(
+  subscribers: List[Subscriber],
+  publishEventService: PublishEventService,
+  subscriberQueueRepository: SubscriberQueueRepository
+)(implicit actorSystem: ActorSystem, executionContext: ExecutionContext, materializer: Materializer) {
 
-  private val subscriptionQueues: Map[Subscriber, BoundedSourceQueue[WorkItem[SubscriberWorkItem]]] = subscribers.map { subscriber =>
-    subscriber -> PushSubscription.subscriberQueue(subscriber, publishEventService)
-  }.toMap
-
-  def subscriberQueue(subscriber: Subscriber): Option[BoundedSourceQueue[WorkItem[SubscriberWorkItem]]] =
-    subscriptionQueues.get(subscriber)
-
+  //TODO discuss strategies for handling failure scenarios
+  private val _: List[NotUsed] = subscribers.map { subscriber =>
+    val source = PushSubscription.subscriptionSource(subscriber, subscriberQueueRepository, publishEventService)
+    RestartSource.withBackoff(
+      RestartSettings(
+        minBackoff = 3.seconds,
+        maxBackoff = 30.seconds,
+        randomFactor = 0.2
+      )
+    ) { () => source } to Sink.ignore run()
+  }
 }

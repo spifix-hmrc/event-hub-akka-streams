@@ -16,15 +16,17 @@
 
 package uk.gov.hmrc.eventhub.subscription
 
+import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
-import akka.stream.BoundedSourceQueue
-import akka.stream.scaladsl.{RetryFlow, Sink, Source}
+import akka.stream.Materializer
+import akka.stream.scaladsl.{RetryFlow, Source}
 import play.api.Logging
 import play.api.libs.json.Json
 import uk.gov.hmrc.eventhub.actors.SendEvent
 import uk.gov.hmrc.eventhub.model.{Subscriber, SubscriberWorkItem}
+import uk.gov.hmrc.eventhub.repository.SubscriberQueueRepository
 import uk.gov.hmrc.eventhub.service.PublishEventService
 import uk.gov.hmrc.mongo.workitem.WorkItem
 
@@ -37,11 +39,23 @@ object PushSubscription extends Logging {
   /**
    * Failed idempotent requests are automatically retried, see: https://doc.akka.io/docs/akka-http/current/client-side/host-level.html#retrying-a-request
    * For POST requests we implement retry with https://doc.akka.io/docs/akka/current/stream/operators/RetryFlow/withBackoff.html#retryflow-withbackoff
+   * Attempts to pull from work item queue when downstream signals demand, emits as soon as there is an available work item
    */
-  def subscriberQueue(
-    subscriber: Subscriber, 
+  def subscriptionSource(
+    subscriber: Subscriber,
+    subscriberQueueRepository: SubscriberQueueRepository,
     publishEventService: PublishEventService
-  )(implicit actorSystem: ActorSystem, executionContext: ExecutionContext): BoundedSourceQueue[WorkItem[SubscriberWorkItem]] = {
+  )(implicit actorSystem: ActorSystem, executionContext: ExecutionContext, materializer: Materializer): Source[(SendEvent.CompletionStatus, WorkItem[SubscriberWorkItem]), NotUsed] = {
+    def onPull: Unit => Future[Option[(Unit, WorkItem[SubscriberWorkItem])]] = _ =>
+      subscriberQueueRepository
+        .getEvent
+        .flatMap {
+          case None => onPull(())
+          case Some(event) => Future.successful(Some(() -> event))
+        }
+
+    val workItemSource: Source[WorkItem[SubscriberWorkItem], NotUsed] =
+      Source.unfoldAsync(())(onPull)
 
     val httpFlow = Http().cachedHostConnectionPool[WorkItem[SubscriberWorkItem]](
       subscriber.uri.authority.host.toString(),
@@ -55,26 +69,26 @@ object PushSubscription extends Logging {
       maxRetries = 5,
       flow = httpFlow
     ){
-      case (inputs@(_, _), (Success(resp), _)) => resp.status match {
-        case StatusCodes.Success(_) | StatusCodes.ClientError(_) => None
-        case _ => Some(inputs)
-      }
+      case (inputs@(_, _), (Success(resp), _)) =>
+        val output = resp.status match {
+          case StatusCodes.Success(_) | StatusCodes.ClientError(_) => None
+          case _ => Some(inputs)
+        }
+        resp.entity.discardBytes()
+        output
       case ((_, _), (Failure(e), workItem)) =>
         logger.error(s"exception pushing event: ${workItem.item.event} to: ${subscriber.uri}, will not retry", e)
         None
     }
 
-
     val responseHandler = handleResponse(_, subscriber, publishEventService)
+    val tuple = requestTuple(subscriber, _)
 
-    Source
-      .queue[WorkItem[SubscriberWorkItem]](subscriber.bufferSize)
+    workItemSource
       .throttle(subscriber.elements, subscriber.per)
-      .map(requestTuple(subscriber, _))
+      .map(tuple)
       .via(retryHttpFlow)
       .mapAsync(parallelism = 8)(responseHandler)
-      .to(Sink.ignore)
-      .run()
   }
 
   def requestTuple(subscriber: Subscriber, subscriberWorkItem: WorkItem[SubscriberWorkItem]): (HttpRequest, WorkItem[SubscriberWorkItem]) = {
@@ -92,15 +106,15 @@ object PushSubscription extends Logging {
     responseTuple: (Try[HttpResponse], WorkItem[SubscriberWorkItem]),
     subscriber: Subscriber,
     publishEventService: PublishEventService
-  )(implicit executionContext: ExecutionContext): Future[SendEvent.CompletionStatus] = responseTuple match {
+  )(implicit executionContext: ExecutionContext): Future[(SendEvent.CompletionStatus, WorkItem[SubscriberWorkItem])] = responseTuple match {
     case (Failure(e), subscriberWorkItem) =>
       logger.error(s"could not push event: ${subscriberWorkItem.item.event} to: ${subscriber.uri}, marking as permanently failed.", e)
-      publishEventService.permanentlyFailed(subscriberWorkItem)
+      publishEventService.permanentlyFailed(subscriberWorkItem).map(_ -> subscriberWorkItem)
     case (Success(response), subscriberWorkItem) => if(response.status.isFailure()){
       logger.error(s"failure: ${response.status} when pushing: ${subscriberWorkItem.item.event} to: ${subscriber.uri}.")
-      publishEventService.permanentlyFailed(subscriberWorkItem)
+      publishEventService.permanentlyFailed(subscriberWorkItem).map(_ -> subscriberWorkItem)
     } else {
-      publishEventService.deleteEvent(subscriberWorkItem)
+      publishEventService.deleteEvent(subscriberWorkItem).map(_ -> subscriberWorkItem)
     }
   }
 }
