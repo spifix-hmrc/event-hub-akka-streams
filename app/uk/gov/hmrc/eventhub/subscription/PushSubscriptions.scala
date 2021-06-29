@@ -17,14 +17,14 @@
 package uk.gov.hmrc.eventhub.subscription
 
 import akka.NotUsed
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Scheduler}
 import akka.stream.{Materializer, RestartSettings}
 import akka.stream.scaladsl.{RestartSource, Sink}
 import uk.gov.hmrc.eventhub.model.Subscriber
 import uk.gov.hmrc.eventhub.repository.SubscriberQueueRepository
 import uk.gov.hmrc.eventhub.service.PublishEventService
+import uk.gov.hmrc.eventhub.stream.{EventPublishingHttpResponseHandler, HttpResponseHandler, SubscriberEventSource, SubscriberHttpFlow}
 
-import scala.concurrent.duration._
 import javax.inject.Singleton
 import scala.concurrent.ExecutionContext
 
@@ -32,18 +32,19 @@ import scala.concurrent.ExecutionContext
 class PushSubscriptions(
   subscribers: List[Subscriber],
   publishEventService: PublishEventService,
-  subscriberQueueRepository: SubscriberQueueRepository
-)(implicit actorSystem: ActorSystem, executionContext: ExecutionContext, materializer: Materializer) {
+  subscriberQueueRepository: SubscriberQueueRepository,
+  restartSettings: RestartSettings
+)(implicit actorSystem: ActorSystem, executionContext: ExecutionContext, materializer: Materializer, scheduler: Scheduler) {
 
-  //TODO discuss strategies for handling failure scenarios
   private val _: List[NotUsed] = subscribers.map { subscriber =>
-    val source = PushSubscription.subscriptionSource(subscriber, subscriberQueueRepository, publishEventService)
-    RestartSource.withBackoff(
-      RestartSettings(
-        minBackoff = 3.seconds,
-        maxBackoff = 30.seconds,
-        randomFactor = 0.2
-      )
-    ) { () => source } to Sink.ignore run()
+    val subscriberEventSource: SubscriberEventSource = new SubscriberEventSource(subscriberQueueRepository)
+    val subscriberHttpFlow: SubscriberHttpFlow = new SubscriberHttpFlow(subscriber)
+    val httpResponseHandler: HttpResponseHandler = new EventPublishingHttpResponseHandler(subscriber, publishEventService)
+    val source = PushSubscription.subscriptionSource(subscriberEventSource, subscriberHttpFlow, httpResponseHandler)
+
+    RestartSource
+      .withBackoff(restartSettings) { () => source }
+      .to(Sink.ignore)
+      .run()
   }
 }
