@@ -31,8 +31,9 @@ import scala.concurrent.{ExecutionContext, Future}
 /**
  * Attempts to pull from work item queue when downstream signals demand, emits as soon as there is an available work item
  */
-class SubscriberEventSource(subscriberQueueRepository: SubscriberQueueRepository)
-                           (implicit scheduler: Scheduler, executionContext: ExecutionContext) {
+class SubscriberEventSource(
+  subscriberQueueRepository: SubscriberQueueRepository
+)(implicit scheduler: Scheduler, executionContext: ExecutionContext) {
 
   /**
    * TODO make `after` delay configurable
